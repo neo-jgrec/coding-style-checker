@@ -35,11 +35,14 @@ coding_style_error_codes=(
 help() {
     echo -e "Usage: coding-style.sh\e[0m"
     echo -e "This script will run the coding style checker\n on the current directory and put a report in the \e[1mreport\e[0m directory"
+    echo -e "Options:"
+    echo -e "  --help\t\tShow this help"
+    echo -e "  --pull\t\tPull the latest version of the coding style checker"
 }
 
 if [ $# == 1 ] && [ $1 == "--help" ]; then
     help
-elif [ $# == 0 ]; then
+elif [ $# == 0 ] || [ $1 == "--pull" ]; then
     DOCKER_SOCKET_PATH=/var/run/docker.sock
     HAS_SOCKET_ACCESS=$(test -r $DOCKER_SOCKET_PATH; echo "$?")
     BASE_EXEC_CMD="docker"
@@ -47,9 +50,15 @@ elif [ $# == 0 ]; then
     echo -e "\e[32mRunning coding style checker at $(pwd)\e[0m"
     rm -f "$EXPORT_FILE"
 
+
     if [ $HAS_SOCKET_ACCESS -ne 0 ]; then
         echo -e "\e[31mNOTICE: Socket access is denied\e[0m, if you want to fix this, add the current user to docker group with : sudo usermod -a -G docker $USER"
         BASE_EXEC_CMD="sudo ${BASE_EXEC_CMD}"
+    fi
+
+    if [ $1 == "--pull" ]; then
+        echo -e "\e[32mPulling latest version of the coding style checker\e[0m"
+        $BASE_EXEC_CMD pull ghcr.io/epitech/coding-style-checker:latest
     fi
 
     $BASE_EXEC_CMD run --rm -i -v "$(pwd)":"/mnt/delivery" -v "$(pwd)/report":"/mnt/reports" ghcr.io/epitech/coding-style-checker:latest "/mnt/delivery" "/mnt/reports"
