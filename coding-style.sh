@@ -1,64 +1,80 @@
 #!/bin/bash
+# bash script forked from git@github.com:Epitech/coding-style-checker.git
+# Remake by : @neo-jgrec
 
-function my_readlink() {
-    cd $1
-    pwd
-    cd - > /dev/null
-}
+coding_style_error_codes=(
+    "C-A3:file not ending with a line break"
+    "C-C1:conditional block with more than 3 branches, or at a nesting level of 3 or more"
+    "C-C3:use of "goto" keyword"
+    "C-F2:function name not following the snake_case convention"
+    "C-F3:line of more than 80 columns"
+    "C-F4:line part of a function with more than 20 lines"
+    "C-F5:function with more than 4 parameters"
+    "C-F6:function with empty parameter list"
+    "C-F8:comment inside function"
+    "C-F9:nested function defined"
+    "C-G1:file not starting with correctly formatted Epitech standard header"
+    "C-G2:zero, two, or more empty lines separating implementations of functions"
+    "C-G3:bad indentation of preprocessor directive"
+    "C-G4:global variable used"
+    "C-G5:"include" directive used to include file other than a header"
+    "C-G6:carriage return character \r used"
+    "C-G7:trailing space"
+    "C-G8:leading or trailing empty line"
+    "C-H1:bad separation between source file and header file"
+    "C-H2:header file not protected against double inclusion"
+    "C-L2:bad indentation at the start of a line"
+    "C-L3:misplaced or missing space(s)"
+    "C-L4:misplaced curly bracket"
+    "C-O1:compiled, temporary or unnecessary file"
+    "C-O3:more than 5 functions in a single file"
+    "C-O4:file name not following the snake_case convention"
+    "C-V1:identifier name not following the snake_case convention"
+)
 
-function cat_readme() {
-    echo ""
-    echo "Usage: $(basename $0) DELIVERY_DIR REPORTS_DIR"
-    echo -e "\tDELIVERY_DIR\tShould be the directory where your project files are"
-    echo -e "\tREPORTS_DIR\tShould be the directory where we output the reports"
-    echo -e "\t\t\tTake note that existing reports will be overriden"
-    echo ""
+help() {
+    echo -e "Usage: coding-style.sh\e[0m"
+    echo -e "This script will run the coding style checker\n on the current directory and put a report in the \e[1mreport\e[0m directory"
 }
 
 if [ $# == 1 ] && [ $1 == "--help" ]; then
-    cat_readme
-elif [ $# = 2 ];
-then
-    DELIVERY_DIR=$(my_readlink "$1")
-    REPORTS_DIR=$(my_readlink "$2")
+    help
+elif [ $# == 0 ]; then
     DOCKER_SOCKET_PATH=/var/run/docker.sock
     HAS_SOCKET_ACCESS=$(test -r $DOCKER_SOCKET_PATH; echo "$?")
-    GHCR_REGISTRY_TOKEN=$(curl -s "https://ghcr.io/token?service=ghcr.io&scope=repository:epitech/coding-style-checker:pull" | grep -o '"token":"[^"]*' | grep -o '[^"]*$') 
-    GHCR_REPOSITORY_STATUS=$(curl -I -f -s -o /dev/null -H "Authorization: Bearer $GHCR_REGISTRY_TOKEN" "https://ghcr.io/v2/epitech/coding-style-checker/manifests/latest" && echo 0 || echo 1)
     BASE_EXEC_CMD="docker"
-    EXPORT_FILE="$REPORTS_DIR"/coding-style-reports.log
-    ### delete existing report file
+    EXPORT_FILE="report"/coding-style-reports.log
+    echo -e "\e[32mRunning coding style checker at $(pwd)\e[0m"
     rm -f "$EXPORT_FILE"
 
-    ### Pull new version of docker image and clean olds
-
     if [ $HAS_SOCKET_ACCESS -ne 0 ]; then
-        echo "WARNING: Socket access is denied"
-        echo "To fix this we will add the current user to docker group with : sudo usermod -a -G docker $USER"
-        read -p "Do you want to proceed? (yes/no) " yn
-        case $yn in 
-            yes | Y | y | Yes | YES) echo "ok, we will proceed";
-                sudo usermod -a -G docker $USER;
-                echo "You must reboot your computer for the changes to take effect";;
-            no | N | n | No | NO) echo "ok, Skipping";;
-            * ) echo "invalid response, Skipping";;
-        esac
+        echo -e "\e[31mNOTICE: Socket access is denied\e[0m, if you want to fix this, add the current user to docker group with : sudo usermod -a -G docker $USER"
         BASE_EXEC_CMD="sudo ${BASE_EXEC_CMD}"
     fi
 
-
-    if [ $GHCR_REPOSITORY_STATUS -eq 0 ]; then
-        echo "Downloading new image and cleaning old one..."
-        $BASE_EXEC_CMD pull ghcr.io/epitech/coding-style-checker:latest && $BASE_EXEC_CMD image prune -f
-        echo "Download OK"
+    $BASE_EXEC_CMD run --rm -i -v "$(pwd)":"/mnt/delivery" -v "$(pwd)/report":"/mnt/reports" ghcr.io/epitech/coding-style-checker:latest "/mnt/delivery" "/mnt/reports"
+    if [[ -f "$EXPORT_FILE" ]]; then
+        echo -en "\e[0;34m$(wc -l < "$EXPORT_FILE") coding style error(s) reported in $EXPORT_FILE\e[0m"
+        echo -en ", $(grep -c ": MAJOR:" "$EXPORT_FILE") \e[31mmajor\e[0m"
+        echo -en ", $(grep -c ": MINOR:" "$EXPORT_FILE") \e[33mminor\e[0m"
+        echo -e ", $(grep -c ": INFO:" "$EXPORT_FILE") \e[32minfo\e[0m"
+        for error_type in "MAJOR" "MINOR" "INFO"; do
+            for error_code in "${coding_style_error_codes[@]}"; do
+                error_code_name=$(echo "$error_code" | cut -d':' -f1)
+                error_code_description=$(echo "$error_code" | cut -d':' -f2)
+                error_code_count=$(grep -c "$error_code_name" "$EXPORT_FILE")
+                error_color=$(if cat "$EXPORT_FILE" | grep "$error_code_name" | grep -q ": MAJOR:"; then echo -e "\e[31m"; elif cat "$EXPORT_FILE" | grep "$error_code_name" | grep -q ": MINOR:"; then echo -e "\e[33m"; else echo -e "\e[32m"; fi)
+                if [ $error_code_count -gt 0 ]; then
+                    if cat "$EXPORT_FILE" | grep "$error_code_name" | grep -q ": $error_type:"; then
+                        echo -e "$error_color$error_code_name\e[0m: $(echo "$error_code_description" | sed -e "s/\\\\n/ /g")"
+                        grep "$error_code_name" "$EXPORT_FILE" | sed -e "s/^/    /" | cut -d':' -f1,2
+                    fi
+                fi
+            done
+        done
     else
-        echo "WARNING: Skipping image download"
+        echo -e "\e[32mNo coding style error reported\e[0m"
     fi
-   
-
-    ### generate reports
-    $BASE_EXEC_CMD run --rm -i -v "$DELIVERY_DIR":"/mnt/delivery" -v "$REPORTS_DIR":"/mnt/reports" ghcr.io/epitech/coding-style-checker:latest "/mnt/delivery" "/mnt/reports"
-    [[ -f "$EXPORT_FILE" ]] && echo "$(wc -l < "$EXPORT_FILE") coding style error(s) reported in "$EXPORT_FILE", $(grep -c ": MAJOR:" "$EXPORT_FILE") major, $(grep -c ": MINOR:" "$EXPORT_FILE") minor, $(grep -c ": INFO:" "$EXPORT_FILE") info"
 else
-    cat_readme
+    help
 fi
