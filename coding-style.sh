@@ -38,11 +38,12 @@ help() {
     echo -e "Options:"
     echo -e "  --help\t\tShow this help"
     echo -e "  --pull\t\tPull the latest version of the coding style checker"
+    echo -e "  --re-pull\t\tRemove the current version of the coding style checker docker image and pull the latest version"
 }
 
 if [ $# == 1 ] && [ $1 == "--help" ]; then
     help
-elif [ $# == 0 ] || [ $1 == "--pull" ]; then
+elif [ $# == 0 ] || [ $1 == "--pull" ] || [ $1 == "--re-pull" ]; then
     DOCKER_SOCKET_PATH=/var/run/docker.sock
     HAS_SOCKET_ACCESS=$(test -r $DOCKER_SOCKET_PATH; echo "$?")
     BASE_EXEC_CMD="docker"
@@ -56,10 +57,15 @@ elif [ $# == 0 ] || [ $1 == "--pull" ]; then
         BASE_EXEC_CMD="sudo ${BASE_EXEC_CMD}"
     fi
 
-    if [ $1 == "--pull" ]; then
+    if [ "$1" = "--pull" ] || [ "$1" = "--re-pull" ]; then
         echo -e "\e[32mPulling latest version of the coding style checker\e[0m"
+        if [ "$1" = "--re-pull" ]; then
+            echo -e "\e[32mRemoving old version of the coding style checker\e[0m"
+            $BASE_EXEC_CMD rmi ghcr.io/epitech/coding-style-checker:latest
+        fi
         $BASE_EXEC_CMD pull ghcr.io/epitech/coding-style-checker:latest
     fi
+
 
     $BASE_EXEC_CMD run --rm -i -v "$(pwd)":"/mnt/delivery" -v "$(pwd)/report":"/mnt/reports" ghcr.io/epitech/coding-style-checker:latest "/mnt/delivery" "/mnt/reports"
     if [[ -f "$EXPORT_FILE" ]]; then
