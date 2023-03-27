@@ -5,7 +5,7 @@
 coding_style_error_codes=(
     "C-A3:file not ending with a line break"
     "C-C1:conditional block with more than 3 branches, or at a nesting level of 3 or more"
-    "C-C3:use of "goto" keyword"
+    "C-C3:use of \"goto\" keyword"
     "C-F2:function name not following the snake_case convention"
     "C-F3:line of more than 80 columns"
     "C-F4:line part of a function with more than 20 lines"
@@ -17,7 +17,7 @@ coding_style_error_codes=(
     "C-G2:zero, two, or more empty lines separating implementations of functions"
     "C-G3:bad indentation of preprocessor directive"
     "C-G4:global variable used"
-    "C-G5:"include" directive used to include file other than a header"
+    "C-G5:\"include\" directive used to include file other than a header"
     "C-G6:carriage return character \r used"
     "C-G7:trailing space"
     "C-G8:leading or trailing empty line"
