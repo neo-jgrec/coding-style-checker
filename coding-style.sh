@@ -47,10 +47,13 @@ elif [ $# == 0 ] || [ $1 == "--pull" ] || [ $1 == "--re-pull" ]; then
     DOCKER_SOCKET_PATH=/var/run/docker.sock
     HAS_SOCKET_ACCESS=$(test -r $DOCKER_SOCKET_PATH; echo "$?")
     BASE_EXEC_CMD="docker"
+    REPORT_FOLDER="report"
     EXPORT_FILE="report"/coding-style-reports.log
     echo -e "\e[32mRunning coding style checker at $(pwd)\e[0m"
-    rm -f "$EXPORT_FILE"
-
+    mkdir -p "$REPORT_FOLDER"
+    if [ -f "$EXPORT_FILE" ]; then
+        rm -f "$EXPORT_FILE"
+    fi
 
     if [ $HAS_SOCKET_ACCESS -ne 0 ]; then
         echo -e "\e[31mNOTICE: Socket access is denied\e[0m, if you want to fix this, add the current user to docker group with : sudo usermod -a -G docker $USER"
