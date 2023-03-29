@@ -39,6 +39,7 @@ help() {
     echo -e "  --help\t\tShow this help"
     echo -e "  --pull\t\tPull the latest version of the coding style checker"
     echo -e "  --re-pull\t\tRemove the current version of the coding style checker docker image and pull the latest version"
+    echo -e "  -o [file]\t\tExport the report to the given file"
 }
 
 if [ $# == 1 ] && [ $1 == "--help" ]; then
@@ -47,12 +48,21 @@ elif [ $# == 0 ] || [ $1 == "--pull" ] || [ $1 == "--re-pull" ]; then
     DOCKER_SOCKET_PATH=/var/run/docker.sock
     HAS_SOCKET_ACCESS=$(test -r $DOCKER_SOCKET_PATH; echo "$?")
     BASE_EXEC_CMD="docker"
-    REPORT_FOLDER="report"
-    EXPORT_FILE="report"/coding-style-reports.log
-    echo -e "\e[32mRunning coding style checker at $(pwd)\e[0m"
-    mkdir -p "$REPORT_FOLDER"
-    if [ -f "$EXPORT_FILE" ]; then
-        rm -f "$EXPORT_FILE"
+
+    if [ $# == 2 ] && [ $1 == "-o" ]; then
+        EXPORT_FILE=$2
+        touch "$EXPORT_FILE"
+        if [ -f "$EXPORT_FILE" ]; then
+            rm -f "$EXPORT_FILE"
+        fi
+        echo -e "\e[32mExporting report to $EXPORT_FILE\e[0m"
+    else
+        EXPORT_FILE="report"/coding-style-reports.log
+        echo -e "\e[32mRunning coding style checker at $(pwd)\e[0m"
+        mkdir -p "report"
+        if [ -f "$EXPORT_FILE" ]; then
+            rm -f "$EXPORT_FILE"
+        fi
     fi
 
     if [ $HAS_SOCKET_ACCESS -ne 0 ]; then
