@@ -44,26 +44,27 @@ help() {
 
 if [ $# == 1 ] && [ $1 == "--help" ]; then
     help
-elif [ $# == 0 ] || [ $1 == "--pull" ] || [ $1 == "--re-pull" ]; then
+elif [ $# == 0 ] || [ $1 == "--pull" ] || [ $1 == "--re-pull" ] || [ $1 == "-o" ]; then
     DOCKER_SOCKET_PATH=/var/run/docker.sock
     HAS_SOCKET_ACCESS=$(test -r $DOCKER_SOCKET_PATH; echo "$?")
     BASE_EXEC_CMD="docker"
 
     if [ $# == 2 ] && [ $1 == "-o" ]; then
-        EXPORT_FILE=$2
+        EXPORT_FILE="$(pwd)/$2"
+        if [ -d "$EXPORT_FILE" ]; then
+            rm -rf "$EXPORT_FILE"
+        fi
+        mkdir -p $2
         touch "$EXPORT_FILE"
-        if [ -f "$EXPORT_FILE" ]; then
-            rm -f "$EXPORT_FILE"
-        fi
-        echo -e "\e[32mExporting report to $EXPORT_FILE\e[0m"
     else
-        EXPORT_FILE="report"/coding-style-reports.log
-        echo -e "\e[32mRunning coding style checker at $(pwd)\e[0m"
-        mkdir -p "report"
-        if [ -f "$EXPORT_FILE" ]; then
-            rm -f "$EXPORT_FILE"
+        EXPORT_FILE="$(pwd)/report"
+        if [ -d "$EXPORT_FILE" ]; then
+            rm -rf "$EXPORT_FILE"
         fi
+        mkdir -p "report"
     fi
+    echo -e "\e[32mRunning coding style checker at $(pwd)\e[0m"
+    echo -e "\e[32mExporting report to $EXPORT_FILE\e[0m"
 
     if [ $HAS_SOCKET_ACCESS -ne 0 ]; then
         echo -e "\e[31mNOTICE: Socket access is denied\e[0m, if you want to fix this, add the current user to docker group with : sudo usermod -a -G docker $USER"
@@ -80,7 +81,8 @@ elif [ $# == 0 ] || [ $1 == "--pull" ] || [ $1 == "--re-pull" ]; then
     fi
 
 
-    $BASE_EXEC_CMD run --rm -i -v "$(pwd)":"/mnt/delivery" -v "$(pwd)/report":"/mnt/reports" ghcr.io/epitech/coding-style-checker:latest "/mnt/delivery" "/mnt/reports"
+    $BASE_EXEC_CMD run --rm -i -v "$(pwd)":"/mnt/delivery" -v "$EXPORT_FILE":/mnt/report ghcr.io/epitech/coding-style-checker:latest /mnt/delivery /mnt/report
+    EXPORT_FILE="$EXPORT_FILE/coding-style-reports.log"
     if [[ -f "$EXPORT_FILE" ]]; then
         echo -en "\e[0;34m$(wc -l < "$EXPORT_FILE") coding style error(s) reported in $EXPORT_FILE\e[0m"
         echo -en ", $(grep -c ": MAJOR:" "$EXPORT_FILE") \e[31mmajor\e[0m"
