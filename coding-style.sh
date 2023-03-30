@@ -88,20 +88,40 @@ elif [ $# == 0 ] || [ $1 == "--pull" ] || [ $1 == "--re-pull" ] || [ $1 == "-o" 
         echo -en ", $(grep -c ": MAJOR:" "$EXPORT_FILE") \e[31mmajor\e[0m"
         echo -en ", $(grep -c ": MINOR:" "$EXPORT_FILE") \e[33mminor\e[0m"
         echo -e ", $(grep -c ": INFO:" "$EXPORT_FILE") \e[32minfo\e[0m"
+        C_O1_count=0
+        C_O1_count_ignore=0
         for error_type in "MAJOR" "MINOR" "INFO"; do
             for error_code in "${coding_style_error_codes[@]}"; do
                 error_code_name=$(echo "$error_code" | cut -d':' -f1)
                 error_code_description=$(echo "$error_code" | cut -d':' -f2)
                 error_code_count=$(grep -c "$error_code_name" "$EXPORT_FILE")
                 error_color=$(if cat "$EXPORT_FILE" | grep "$error_code_name" | grep -q ": MAJOR:"; then echo -e "\e[31m"; elif cat "$EXPORT_FILE" | grep "$error_code_name" | grep -q ": MINOR:"; then echo -e "\e[33m"; else echo -e "\e[32m"; fi)
+                file=$(grep "$error_code_name" "$EXPORT_FILE" | cut -d':' -f1 | head -n1)
                 if [ $error_code_count -gt 0 ]; then
                     if cat "$EXPORT_FILE" | grep "$error_code_name" | grep -q ": $error_type:"; then
-                        echo -e "$error_color$error_code_name\e[0m: $(echo "$error_code_description" | sed -e "s/\\\\n/ /g")"
-                        grep "$error_code_name" "$EXPORT_FILE" | sed -e "s/^/    /" | cut -d':' -f1,2
+                        if [ "$error_code_name" = "C-O1" ]; then
+                            C_O1_count=$(($C_O1_count + $error_code_count))
+                            if git check-ignore -q "$file"; then
+                                C_O1_count_ignore=$(($C_O1_count_ignore + 1))
+                            fi
+                        else
+                            echo -e "$error_color$error_code_name\e[0m: $(echo "$error_code_description" | sed -e "s/\\\\n/ /g")"
+                            grep "$error_code_name" "$EXPORT_FILE" | sed -e "s/^/    /" | cut -d':' -f1,2
+                        fi
                     fi
                 fi
             done
         done
+        if [ $C_O1_count -gt 0 ]; then
+            echo
+            # ternay operator to change error string if one or several files found
+            if [ $C_O1_count -eq 1 ]; then C_O1_count_ignore_string="file"; else C_O1_count_ignore_string="files"; fi
+            if [ ! $C_O1_count_ignore -eq $C_O1_count ]; then
+                echo -e "\e[31mC-O1\e[0m: \e[1m$C_O1_count\e[0m compiled, temporary or unnecessary $C_O1_count_ignore_string found, \e[31m$C_O1_count_ignore/$C_O1_count\e[0m ignored."
+            else
+                echo -e "\e[90mC-O1\e[0m: \e[1m$C_O1_count\e[0m compiled, temporary or unnecessary $C_O1_count_ignore_string found, \e[32m$C_O1_count_ignore/$C_O1_count\e[0m ignored."
+            fi
+        fi
     else
         echo -e "\e[32mNo coding style error reported\e[0m"
     fi
